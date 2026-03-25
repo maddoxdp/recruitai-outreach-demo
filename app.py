@@ -1,23 +1,23 @@
 import streamlit as st
 import os
-from crewai import Agent, Task, Crew, Process, LLM   # ← Added LLM
-from langchain_groq import ChatGroq   # Keep for optional fallback
+from crewai import Agent, Task, Crew, Process, LLM
 import datetime
 
 st.set_page_config(page_title="RecruitAI Outreach Demo", layout="centered")
 
-# ====================== SECRETS & CONFIG ======================
+# ====================== SECRETS ======================
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
 if not GROQ_API_KEY:
-    st.error("❌ GROQ_API_KEY is missing. Add it in Streamlit → Settings → Secrets.")
+    st.error("❌ GROQ_API_KEY is missing. Go to Streamlit → Settings → Secrets and add it.")
     st.stop()
 
-# === NEW RECOMMENDED WAY: Use CrewAI's native LLM wrapper ===
+# ====================== LLM (Groq via LiteLLM) ======================
 llm = LLM(
-    model="groq/llama3-70b-8192",      # This tells CrewAI to use Groq under the hood
+    model="groq/llama3-70b-8192",   # Reliable model on Groq
     temperature=0.4,
-    # api_key is automatically read from GROQ_API_KEY env var
+    max_tokens=2048,
+    # CrewAI + LiteLLM automatically picks up GROQ_API_KEY from environment
 )
 
 current_date = datetime.date.today().strftime("%Y-%m-%d")
@@ -25,9 +25,10 @@ current_date = datetime.date.today().strftime("%Y-%m-%d")
 compliance_backstory = f"""
 You are an NCAA recruiting compliance expert (2025-26 rules). 
 Use only public sources (.edu sites, MaxPreps, 247Sports, official team pages).
-Football electronic contact generally safe after June 15 post-sophomore year.
-Basketball/Soccer: June 15 after sophomore year.
-Current date: {current_date}. Always include a clear disclaimer in every message.
+Football: Electronic contact generally safe after June 15 post-sophomore year.
+Basketball & Soccer: June 15 after sophomore year.
+Current date: {current_date}. 
+Always include a clear disclaimer in every message.
 Never suggest violating NCAA rules.
 """
 
@@ -36,8 +37,9 @@ researcher = Agent(
     role="Target & Fit Researcher",
     goal="Find 8-12 strong school/coach fits for the athlete",
     backstory=compliance_backstory,
-    llm=llm,          # ← Now using CrewAI LLM
-    verbose=False
+    llm=llm,
+    verbose=False,
+    allow_delegation=False
 )
 
 contact_finder = Agent(
@@ -45,7 +47,8 @@ contact_finder = Agent(
     goal="Find public coach emails or staff directory links",
     backstory=compliance_backstory,
     llm=llm,
-    verbose=False
+    verbose=False,
+    allow_delegation=False
 )
 
 personalizer = Agent(
@@ -53,7 +56,8 @@ personalizer = Agent(
     goal="Write personalized, professional outreach emails/DMs",
     backstory="You write concise, respectful recruiting emails that stand out to busy coaches.",
     llm=llm,
-    verbose=False
+    verbose=False,
+    allow_delegation=False
 )
 
 compliance_guard = Agent(
@@ -61,12 +65,13 @@ compliance_guard = Agent(
     goal="Review everything for NCAA compliance and suggest safe timing",
     backstory=compliance_backstory,
     llm=llm,
-    verbose=False
+    verbose=False,
+    allow_delegation=False
 )
 
-# ====================== STREAMLIT UI ======================
+# ====================== UI ======================
 st.title("🏈 RecruitAI – Athlete Outreach Demo")
-st.markdown("**Football / Basketball / Soccer** – Generate personalized, compliant coach outreach in minutes.")
+st.markdown("**Football • Basketball • Soccer** – Personalized, compliant coach outreach in minutes.")
 
 sport = st.selectbox("Sport", ["Football", "Basketball", "Soccer"])
 position = st.text_input("Position (e.g. QB, SG, Striker)", "QB")
@@ -79,29 +84,28 @@ other = st.text_area("Additional Notes (optional)", "Team captain, dual-threat e
 athlete_input = f"{sport} | {position} | Class of {class_year} | GPA {gpa} | {location} | Stats: {stats} | {other}"
 
 if st.button("🚀 Run Outreach Crew", type="primary"):
-    with st.spinner("Crew is researching targets, finding contacts, and drafting messages... (this can take 30–90 seconds)"):
+    with st.spinner("Crew researching targets, finding contacts & drafting messages... (30–90 seconds)"):
         try:
-            # Define tasks (chained)
             task1 = Task(
-                description=f"Research strong target schools and programs for this athlete: {athlete_input}",
-                expected_output="A numbered list of 8-12 schools with brief fit rationale and any known coach needs.",
+                description=f"Research strong target schools/programs for: {athlete_input}",
+                expected_output="Numbered list of 8-12 schools with fit rationale and known coach needs.",
                 agent=researcher
             )
 
             task2 = Task(
-                description="From the targets above, find public coach contact information (emails or staff pages).",
+                description="From the targets, find public coach contact info (emails/staff pages).",
                 expected_output="List of coaches with contact details and source.",
                 agent=contact_finder
             )
 
             task3 = Task(
-                description=f"Draft 3 personalized outreach email/DM templates for the athlete: {athlete_input}",
-                expected_output="3 ready-to-use email templates (Subject + Body) with NCAA disclaimer.",
+                description=f"Draft 3 personalized outreach email/DM templates for: {athlete_input}",
+                expected_output="3 ready-to-use templates (Subject + Body) including NCAA disclaimer.",
                 agent=personalizer
             )
 
             task4 = Task(
-                description="Review the entire output for NCAA compliance and suggest safe send timing.",
+                description="Review the entire output for NCAA compliance and suggest safe timing.",
                 expected_output="Compliance verdict, risks, and follow-up schedule.",
                 agent=compliance_guard
             )
@@ -115,14 +119,12 @@ if st.button("🚀 Run Outreach Crew", type="primary"):
 
             result = outreach_crew.kickoff(inputs={"athlete_input": athlete_input})
 
-            st.success("✅ Campaign Generated!")
-            st.markdown("### Results")
+            st.success("✅ Campaign Generated Successfully!")
+            st.markdown("### 📋 Results")
             st.write(result)
 
-            st.info("In the full SaaS version we will add CSV/PDF export and more polished formatting.")
-
         except Exception as e:
-            st.error(f"Error running crew: {str(e)}")
-            st.info("Tip: Check that your GROQ_API_KEY is correct and has credits.")
+            st.error(f"❌ Error: {str(e)}")
+            st.info("Tips: Make sure GROQ_API_KEY is correct and has remaining credits.")
 
-st.caption("Demo powered by CrewAI + Groq • Public data only • Always verify contacts & NCAA rules manually")
+st.caption("Demo powered by CrewAI + Groq • Public data only • Always verify contacts & NCAA rules yourself")
