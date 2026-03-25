@@ -1,4 +1,6 @@
 streamlit
 crewai==1.11.1
-crewai[litellm]   # This installs litellm + all Groq support
+crewai[litellm]
+litellm
 tiktoken==0.8.0
+crewai-tools
