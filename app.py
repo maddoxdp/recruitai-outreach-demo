@@ -14,7 +14,7 @@ if not GROQ_API_KEY:
 
 # ====================== LLM (Groq via LiteLLM) ======================
 llm = LLM(
-    model="groq/llama3-70b-8192",   # Reliable model on Groq
+    model="groq/llama-3.3-70b-versatile",   # Reliable model on Groq
     temperature=0.4,
     max_tokens=2048,
     # CrewAI + LiteLLM automatically picks up GROQ_API_KEY from environment
