@@ -1,24 +1,23 @@
 import streamlit as st
 import os
-from crewai import Agent, Task, Crew, Process
-from langchain_groq import ChatGroq
+from crewai import Agent, Task, Crew, Process, LLM   # ← Added LLM
+from langchain_groq import ChatGroq   # Keep for optional fallback
 import datetime
 
 st.set_page_config(page_title="RecruitAI Outreach Demo", layout="centered")
 
 # ====================== SECRETS & CONFIG ======================
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-SERPER_API_KEY = os.getenv("SERPER_API_KEY")  # Optional for now (demo uses basic search)
 
 if not GROQ_API_KEY:
     st.error("❌ GROQ_API_KEY is missing. Add it in Streamlit → Settings → Secrets.")
     st.stop()
 
-# Initialize LLM (fast & cheap on Groq)
-llm = ChatGroq(
-    groq_api_key=GROQ_API_KEY,
-    model="llama3-70b-8192",
-    temperature=0.4
+# === NEW RECOMMENDED WAY: Use CrewAI's native LLM wrapper ===
+llm = LLM(
+    model="groq/llama3-70b-8192",      # This tells CrewAI to use Groq under the hood
+    temperature=0.4,
+    # api_key is automatically read from GROQ_API_KEY env var
 )
 
 current_date = datetime.date.today().strftime("%Y-%m-%d")
@@ -32,12 +31,12 @@ Current date: {current_date}. Always include a clear disclaimer in every message
 Never suggest violating NCAA rules.
 """
 
-# ====================== AGENTS (Simplified for Demo Speed) ======================
+# ====================== AGENTS ======================
 researcher = Agent(
     role="Target & Fit Researcher",
     goal="Find 8-12 strong school/coach fits for the athlete",
     backstory=compliance_backstory,
-    llm=llm,
+    llm=llm,          # ← Now using CrewAI LLM
     verbose=False
 )
 
@@ -80,6 +79,50 @@ other = st.text_area("Additional Notes (optional)", "Team captain, dual-threat e
 athlete_input = f"{sport} | {position} | Class of {class_year} | GPA {gpa} | {location} | Stats: {stats} | {other}"
 
 if st.button("🚀 Run Outreach Crew", type="primary"):
-    if not athlete_input.strip():
-        st.warning("Please fill in the athlete details.")
-        st.stop
+    with st.spinner("Crew is researching targets, finding contacts, and drafting messages... (this can take 30–90 seconds)"):
+        try:
+            # Define tasks (chained)
+            task1 = Task(
+                description=f"Research strong target schools and programs for this athlete: {athlete_input}",
+                expected_output="A numbered list of 8-12 schools with brief fit rationale and any known coach needs.",
+                agent=researcher
+            )
+
+            task2 = Task(
+                description="From the targets above, find public coach contact information (emails or staff pages).",
+                expected_output="List of coaches with contact details and source.",
+                agent=contact_finder
+            )
+
+            task3 = Task(
+                description=f"Draft 3 personalized outreach email/DM templates for the athlete: {athlete_input}",
+                expected_output="3 ready-to-use email templates (Subject + Body) with NCAA disclaimer.",
+                agent=personalizer
+            )
+
+            task4 = Task(
+                description="Review the entire output for NCAA compliance and suggest safe send timing.",
+                expected_output="Compliance verdict, risks, and follow-up schedule.",
+                agent=compliance_guard
+            )
+
+            outreach_crew = Crew(
+                agents=[researcher, contact_finder, personalizer, compliance_guard],
+                tasks=[task1, task2, task3, task4],
+                process=Process.sequential,
+                verbose=False
+            )
+
+            result = outreach_crew.kickoff(inputs={"athlete_input": athlete_input})
+
+            st.success("✅ Campaign Generated!")
+            st.markdown("### Results")
+            st.write(result)
+
+            st.info("In the full SaaS version we will add CSV/PDF export and more polished formatting.")
+
+        except Exception as e:
+            st.error(f"Error running crew: {str(e)}")
+            st.info("Tip: Check that your GROQ_API_KEY is correct and has credits.")
+
+st.caption("Demo powered by CrewAI + Groq • Public data only • Always verify contacts & NCAA rules manually")
