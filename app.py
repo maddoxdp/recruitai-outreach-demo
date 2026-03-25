@@ -1,30 +1,38 @@
 import streamlit as st
 import os
 from crewai import Agent, Task, Crew, Process, LLM
+from crewai_tools import SerperDevTool, ScrapeWebsiteTool
 import datetime
 
 st.set_page_config(page_title="RecruitAI Outreach Demo", layout="centered")
 
 # ====================== SECRETS ======================
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+SERPER_API_KEY = os.getenv("SERPER_API_KEY")
 
 if not GROQ_API_KEY:
-    st.error("❌ GROQ_API_KEY is missing. Go to Streamlit → Settings → Secrets and add it.")
+    st.error("❌ GROQ_API_KEY is missing. Add it in Streamlit → Settings → Secrets.")
     st.stop()
 
-# ====================== LLM (Groq via LiteLLM) ======================
+if not SERPER_API_KEY:
+    st.warning("⚠️ SERPER_API_KEY is missing. Add it in Secrets for full web search power.")
+
+# ====================== TOOLS ======================
+search_tool = SerperDevTool() if SERPER_API_KEY else None
+scrape_tool = ScrapeWebsiteTool()
+
+# ====================== LLM ======================
 llm = LLM(
-    model="groq/llama-3.3-70b-versatile",   # Reliable model on Groq
+    model="groq/llama-3.3-70b-versatile",
     temperature=0.4,
     max_tokens=2048,
-    # CrewAI + LiteLLM automatically picks up GROQ_API_KEY from environment
 )
 
 current_date = datetime.date.today().strftime("%Y-%m-%d")
 
 compliance_backstory = f"""
 You are an NCAA recruiting compliance expert (2025-26 rules). 
-Use only public sources (.edu sites, MaxPreps, 247Sports, official team pages).
+Use ONLY public sources (.edu sites, MaxPreps, 247Sports, official team pages).
 Football: Electronic contact generally safe after June 15 post-sophomore year.
 Basketball & Soccer: June 15 after sophomore year.
 Current date: {current_date}. 
@@ -32,21 +40,23 @@ Always include a clear disclaimer in every message.
 Never suggest violating NCAA rules.
 """
 
-# ====================== AGENTS ======================
+# ====================== AGENTS (with tools) ======================
 researcher = Agent(
     role="Target & Fit Researcher",
-    goal="Find 8-12 strong school/coach fits for the athlete",
+    goal="Find 8-12 strong school/coach fits using real-time web search",
     backstory=compliance_backstory,
     llm=llm,
+    tools=[search_tool] if search_tool else [],
     verbose=False,
     allow_delegation=False
 )
 
 contact_finder = Agent(
     role="Coach Contact Finder",
-    goal="Find public coach emails or staff directory links",
+    goal="Find public coach emails and staff directory links using search + scraping",
     backstory=compliance_backstory,
     llm=llm,
+    tools=[search_tool, scrape_tool] if search_tool else [scrape_tool],
     verbose=False,
     allow_delegation=False
 )
@@ -70,31 +80,31 @@ compliance_guard = Agent(
 )
 
 # ====================== UI ======================
-st.title("🏈 RecruitAI – Athlete Outreach Demo")
-st.markdown("**Football • Basketball • Soccer** – Personalized, compliant coach outreach in minutes.")
+st.title("🏈 RecruitAI – Athlete Outreach Demo (with Real Web Tools)")
+st.markdown("**Football • Basketball • Soccer** – Now with live web search & scraping for better coach contacts!")
 
 sport = st.selectbox("Sport", ["Football", "Basketball", "Soccer"])
 position = st.text_input("Position (e.g. QB, SG, Striker)", "QB")
 class_year = st.text_input("Class Year (e.g. 2027)", "2027")
 gpa = st.text_input("GPA", "3.6")
 location = st.text_input("Location / Preferred Targets (e.g. Texas D1)", "Texas")
-stats = st.text_area("Key Stats + Highlights Link", "2,800 passing yards, 32 TDs, 68% completion. Highlights: hudl.com/profile/example")
-other = st.text_area("Additional Notes (optional)", "Team captain, dual-threat elements")
+stats = st.text_area("Key Stats + Highlights Link", "2,800 passing yards, 32 TDs, 68% completion. Highlights: hudl.com/profile/tx-qb-2027-example")
+other = st.text_area("Additional Notes (optional)", "Team captain, dual-threat QB")
 
 athlete_input = f"{sport} | {position} | Class of {class_year} | GPA {gpa} | {location} | Stats: {stats} | {other}"
 
-if st.button("🚀 Run Outreach Crew", type="primary"):
-    with st.spinner("Crew researching targets, finding contacts & drafting messages... (30–90 seconds)"):
+if st.button("🚀 Run Outreach Crew with Web Tools", type="primary"):
+    with st.spinner("Crew is now searching the web and scraping public pages... (45–120 seconds)"):
         try:
             task1 = Task(
                 description=f"Research strong target schools/programs for: {athlete_input}",
-                expected_output="Numbered list of 8-12 schools with fit rationale and known coach needs.",
+                expected_output="Numbered list of 8-12 schools with fit rationale and known coach needs (use web search).",
                 agent=researcher
             )
 
             task2 = Task(
-                description="From the targets, find public coach contact info (emails/staff pages).",
-                expected_output="List of coaches with contact details and source.",
+                description="From the targets above, use search + scraping to find public coach contact info (emails/staff pages).",
+                expected_output="List of coaches with contact details and source links.",
                 agent=contact_finder
             )
 
@@ -119,12 +129,11 @@ if st.button("🚀 Run Outreach Crew", type="primary"):
 
             result = outreach_crew.kickoff(inputs={"athlete_input": athlete_input})
 
-            st.success("✅ Campaign Generated Successfully!")
-            st.markdown("### 📋 Results")
+            st.success("✅ Campaign Generated with Real Web Data!")
+            st.markdown("### 📋 Full Results")
             st.write(result)
 
         except Exception as e:
             st.error(f"❌ Error: {str(e)}")
-            st.info("Tips: Make sure GROQ_API_KEY is correct and has remaining credits.")
 
-st.caption("Demo powered by CrewAI + Groq • Public data only • Always verify contacts & NCAA rules yourself")
+st.caption("Demo now uses Serper + ScrapeWebsiteTool • Public data only • Always verify contacts & NCAA rules manually")
