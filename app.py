@@ -125,14 +125,13 @@ if st.button("🚀 Run Outreach Crew with Web Tools", type="primary"):
                 agent=compliance_guard
             )
 
-            # Hierarchical crew with limits to avoid token overload
             outreach_crew = Crew(
                 agents=[researcher, contact_finder, personalizer, compliance_guard],
                 tasks=[task1, task2, task3, task4],
-                process=Process.sequential,   # Changed back to sequential for stability
+                process=Process.sequential,
                 verbose=False,
-                max_rpm=10,                   # Throttle to avoid rate limits
-                memory=False                  # Save tokens
+                max_rpm=10,
+                memory=False
             )
 
             result = outreach_crew.kickoff(inputs={"athlete_input": athlete_input})
@@ -143,11 +142,6 @@ if st.button("🚀 Run Outreach Crew with Web Tools", type="primary"):
 
         except Exception as e:
             st.error(f"❌ Error running crew: {str(e)}")
-            st.info("Tip: Try a shorter input or check your Groq API key limits.")
+            st.info("Tip: Try a shorter athlete description or check Groq rate limits.")
 
-st.caption("Demo uses Serper + ScrapeWebsiteTool • Public data only • Always verify manually")
-
-        except Exception as e:
-            st.error(f"❌ Error: {str(e)}")
-
-st.caption("Demo now uses Serper + ScrapeWebsiteTool • Public data only • Always verify contacts & NCAA rules manually")
+st.caption("Demo uses Serper + ScrapeWebsiteTool • Public data only • Always verify contacts & NCAA rules manually")
