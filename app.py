@@ -21,24 +21,25 @@ if not SERPER_API_KEY:
 search_tool = SerperDevTool() if SERPER_API_KEY else None
 scrape_tool = ScrapeWebsiteTool()
 
-# ====================== LLM ======================
+# ====================== LLM (Light & Fast) ======================
 llm = LLM(
-    model="groq/llama-3.1-8b-instant",
+    model="groq/llama-3.1-8b-instant",   # Highest speed + decent limits for demo
     temperature=0.3,
-    max_tokens=1500,
+    max_tokens=1200,                     # Cap output size
 )
 
 current_date = datetime.date.today().strftime("%Y-%m-%d")
 
+# Short & efficient backstory (reduces repeated tokens dramatically)
 compliance_backstory = f"""
-NCAA recruiting expert. Public sources only. Current date: {current_date}.
-Always add disclaimer. Never suggest rule violations.
+NCAA compliance expert. Public sources only (.edu, MaxPreps, 247). 
+Current date: {current_date}. Always add disclaimer. Never violate rules.
 """
 
 # ====================== AGENTS (with tools) ======================
 researcher = Agent(
-    role="Target & Fit Researcher",
-    goal="Find 8-12 strong school/coach fits using real-time web search",
+    role="Target Researcher",
+    goal="Find 8-10 realistic school fits using web search",
     backstory=compliance_backstory,
     llm=llm,
     tools=[search_tool] if search_tool else [],
@@ -48,7 +49,7 @@ researcher = Agent(
 
 contact_finder = Agent(
     role="Coach Contact Finder",
-    goal="Find public coach emails and staff directory links using search + scraping",
+    goal="Find public coach contacts via search and scraping",
     backstory=compliance_backstory,
     llm=llm,
     tools=[search_tool, scrape_tool] if search_tool else [scrape_tool],
@@ -58,8 +59,8 @@ contact_finder = Agent(
 
 personalizer = Agent(
     role="Message Personalizer",
-    goal="Write personalized, professional outreach emails/DMs",
-    backstory="You write concise, respectful recruiting emails that stand out to busy coaches.",
+    goal="Create 3 short, professional outreach templates",
+    backstory="Write concise recruiting emails that respect coaches' time.",
     llm=llm,
     verbose=False,
     allow_delegation=False
@@ -67,11 +68,20 @@ personalizer = Agent(
 
 compliance_guard = Agent(
     role="Compliance Guardian",
-    goal="Review everything for NCAA compliance and suggest safe timing",
+    goal="Check NCAA rules and suggest timing",
     backstory=compliance_backstory,
     llm=llm,
     verbose=False,
     allow_delegation=False
+)
+
+# Manager for hierarchical process (helps control token flow)
+manager = Agent(
+    role="Recruiting Project Manager",
+    goal="Coordinate the crew and keep outputs concise",
+    backstory="You ensure efficient, high-quality recruiting campaigns.",
+    llm=llm,
+    verbose=False
 )
 
 # ====================== UI ======================
@@ -92,37 +102,39 @@ if st.button("🚀 Run Outreach Crew with Web Tools", type="primary"):
     with st.spinner("Crew is now searching the web and scraping public pages... (45–120 seconds)"):
         try:
             task1 = Task(
-                description=f"Research strong target schools/programs for: {athlete_input}",
-                expected_output="Numbered list of 8-12 schools with fit rationale and known coach needs (use web search).",
+                description=f"Quickly research 8-10 good-fit schools for this athlete: {athlete_input}. Keep it brief.",
+                expected_output="Short numbered list of schools with 1-2 sentence fit rationale each.",
                 agent=researcher
             )
 
             task2 = Task(
-                description="From the targets above, use search + scraping to find public coach contact info (emails/staff pages).",
-                expected_output="List of coaches with contact details and source links.",
+                description="From the list above, find public coach contact info.",
+                expected_output="Bullet list: School - Coach Name - Contact/Source (keep very short).",
                 agent=contact_finder
             )
 
             task3 = Task(
-                description=f"Draft 3 personalized outreach email/DM templates for: {athlete_input}",
-                expected_output="3 ready-to-use templates (Subject + Body) including NCAA disclaimer.",
+                description=f"Write 3 short, natural outreach email templates for: {athlete_input}",
+                expected_output="3 templates labeled 1,2,3 with Subject and Body. Include disclaimer.",
                 agent=personalizer
             )
 
             task4 = Task(
-                description="Review the entire output for NCAA compliance and suggest safe timing.",
-                expected_output="Compliance verdict, risks, and follow-up schedule.",
+                description="Review for compliance and suggest safe timing.",
+                expected_output="Short compliance summary + recommended schedule.",
                 agent=compliance_guard
             )
 
-            outreach_crew = Crew(
-                agents=[researcher, contact_finder, personalizer, compliance_guard],
-                tasks=[task1, task2, task3, task4],
-                process=Process.sequential,
-                verbose=False,
-                max_rpm=15,
-                memory=False,
-            )
+           # ====================== CREW (Hierarchical + limits) ======================
+outreach_crew = Crew(
+    agents=[researcher, contact_finder, personalizer, compliance_guard],
+    tasks=[task1, task2, task3, task4],
+    process=Process.hierarchical,        # Manager helps reduce redundant context
+    manager_agent=manager,
+    verbose=False,
+    max_rpm=10,                          # Throttle requests
+    memory=False,                        # Disable memory to save tokens
+)
 
             result = outreach_crew.kickoff(inputs={"athlete_input": athlete_input})
 
