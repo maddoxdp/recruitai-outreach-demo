@@ -23,21 +23,16 @@ scrape_tool = ScrapeWebsiteTool()
 
 # ====================== LLM ======================
 llm = LLM(
-    model="groq/llama-3.3-70b-versatile",
-    temperature=0.4,
-    max_tokens=2048,
+    model="groq/llama-3.1-8b-instant",
+    temperature=0.3,
+    max_tokens=1500,
 )
 
 current_date = datetime.date.today().strftime("%Y-%m-%d")
 
 compliance_backstory = f"""
-You are an NCAA recruiting compliance expert (2025-26 rules). 
-Use ONLY public sources (.edu sites, MaxPreps, 247Sports, official team pages).
-Football: Electronic contact generally safe after June 15 post-sophomore year.
-Basketball & Soccer: June 15 after sophomore year.
-Current date: {current_date}. 
-Always include a clear disclaimer in every message.
-Never suggest violating NCAA rules.
+NCAA recruiting expert. Public sources only. Current date: {current_date}.
+Always add disclaimer. Never suggest rule violations.
 """
 
 # ====================== AGENTS (with tools) ======================
@@ -124,7 +119,9 @@ if st.button("🚀 Run Outreach Crew with Web Tools", type="primary"):
                 agents=[researcher, contact_finder, personalizer, compliance_guard],
                 tasks=[task1, task2, task3, task4],
                 process=Process.sequential,
-                verbose=False
+                verbose=False,
+                max_rpm=15,
+                memory=False,
             )
 
             result = outreach_crew.kickoff(inputs={"athlete_input": athlete_input})
