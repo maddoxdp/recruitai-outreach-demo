@@ -99,7 +99,7 @@ other = st.text_area("Additional Notes (optional)", "Team captain, dual-threat Q
 athlete_input = f"{sport} | {position} | Class of {class_year} | GPA {gpa} | {location} | Stats: {stats} | {other}"
 
 if st.button("🚀 Run Outreach Crew with Web Tools", type="primary"):
-    with st.spinner("Crew is now searching the web and scraping public pages... (45–120 seconds)"):
+    with st.spinner("Crew is searching the web and generating outreach... (45–90 seconds)"):
         try:
             task1 = Task(
                 description=f"Quickly research 8-10 good-fit schools for this athlete: {athlete_input}. Keep it brief.",
@@ -125,22 +125,27 @@ if st.button("🚀 Run Outreach Crew with Web Tools", type="primary"):
                 agent=compliance_guard
             )
 
-           # ====================== CREW (Hierarchical + limits) ======================
-outreach_crew = Crew(
-    agents=[researcher, contact_finder, personalizer, compliance_guard],
-    tasks=[task1, task2, task3, task4],
-    process=Process.hierarchical,        # Manager helps reduce redundant context
-    manager_agent=manager,
-    verbose=False,
-    max_rpm=10,                          # Throttle requests
-    memory=False,                        # Disable memory to save tokens
-)
+            # Hierarchical crew with limits to avoid token overload
+            outreach_crew = Crew(
+                agents=[researcher, contact_finder, personalizer, compliance_guard],
+                tasks=[task1, task2, task3, task4],
+                process=Process.sequential,   # Changed back to sequential for stability
+                verbose=False,
+                max_rpm=10,                   # Throttle to avoid rate limits
+                memory=False                  # Save tokens
+            )
 
             result = outreach_crew.kickoff(inputs={"athlete_input": athlete_input})
 
-            st.success("✅ Campaign Generated with Real Web Data!")
+            st.success("✅ Campaign Generated with Web Tools!")
             st.markdown("### 📋 Full Results")
             st.write(result)
+
+        except Exception as e:
+            st.error(f"❌ Error running crew: {str(e)}")
+            st.info("Tip: Try a shorter input or check your Groq API key limits.")
+
+st.caption("Demo uses Serper + ScrapeWebsiteTool • Public data only • Always verify manually")
 
         except Exception as e:
             st.error(f"❌ Error: {str(e)}")
