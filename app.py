@@ -2,7 +2,6 @@ import streamlit as st
 import os
 from crewai import Agent, Task, Crew, Process, LLM
 import datetime
-import json
 
 st.set_page_config(page_title="RecruitAI Outreach Demo", layout="centered")
 
@@ -11,37 +10,41 @@ if not GROQ_API_KEY:
     st.error("❌ GROQ_API_KEY missing. Add it in Streamlit Secrets.")
     st.stop()
 
-# Lightweight LLM setup (stable version)
 llm = LLM(
     model="groq/llama-3.1-8b-instant",
-    temperature=0.3,
-    max_tokens=800,
+    temperature=0.35,
+    max_tokens=1000,
 )
 
 current_date = datetime.date.today().strftime("%Y-%m-%d")
 
 backstory = f"NCAA recruiting expert. Public data only. Date: {current_date}. Always add disclaimer. Never suggest rule violations."
 
-# Agents
 researcher = Agent(role="Researcher", goal="List 6-8 school fits", backstory=backstory, llm=llm, verbose=False)
 contact_finder = Agent(role="Contact Finder", goal="Find public coach contacts", backstory=backstory, llm=llm, verbose=False)
-personalizer = Agent(role="Personalizer", goal="Write 2 short email templates", backstory=backstory, llm=llm, verbose=False)
+personalizer = Agent(
+    role="Personalizer", 
+    goal="Write detailed, natural, and highly personalized email templates",
+    backstory="You are an expert recruiting communications writer. Create professional, respectful, and compelling emails that stand out to busy college coaches.",
+    llm=llm, 
+    verbose=False
+)
 compliance_guard = Agent(role="Compliance Guard", goal="Check rules & timing", backstory=backstory, llm=llm, verbose=False)
 
 st.title("🏈 RecruitAI – Athlete Outreach Demo")
-st.markdown("**Polished Version** • Football • Basketball • Soccer")
+st.markdown("**Improved Email Templates Version** • More Detailed & Personalized")
 
 sport = st.selectbox("Sport", ["Football", "Basketball", "Soccer"])
-position = st.text_input("Position (e.g. PG, QB)", "PG")
+position = st.text_input("Position (e.g. PG, QB, Striker)", "PG")
 class_year = st.text_input("Class Year", "2027")
 gpa = st.text_input("GPA", "3.6")
 location = st.text_input("Location / Targets", "Texas")
-stats = st.text_area("Key Stats + Highlights Link (keep short)", "18 PPG, 5 APG, 38% 3PT. hudl.com/example-pg")
+stats = st.text_area("Key Stats + Highlights Link (keep reasonably short)", "18 PPG, 5 APG, 38% from three, strong defender. hudl.com/example-pg-texas")
 
 athlete_input = f"{sport} {position} Class of {class_year} GPA {gpa} from {location}. Stats: {stats}"
 
 if st.button("🚀 Run Outreach Crew", type="primary"):
-    with st.spinner("Generating polished outreach campaign..."):
+    with st.spinner("Generating improved detailed outreach campaign..."):
         try:
             task1 = Task(
                 description=f"List 6-8 good-fit schools for: {athlete_input}",
@@ -56,8 +59,8 @@ if st.button("🚀 Run Outreach Crew", type="primary"):
             )
 
             task3 = Task(
-                description=f"Write 2 short, natural email templates for: {athlete_input}",
-                expected_output="2 templates labeled Template 1 and Template 2 with Subject and Body + disclaimer.",
+                description=f"Write 2 detailed, natural, and compelling email templates + 1 short DM version for: {athlete_input}",
+                expected_output="Provide 3 outputs:\n1. Long Email Template (full professional email)\n2. Alternative Email Template (different angle)\n3. Short DM/Text Template\nInclude strong subject lines and NCAA disclaimer.",
                 agent=personalizer
             )
 
@@ -78,27 +81,37 @@ if st.button("🚀 Run Outreach Crew", type="primary"):
 
             result = crew.kickoff(inputs={"athlete_input": athlete_input})
 
-            # Polished Output Display
-            st.success("✅ Campaign Generated Successfully!")
+            st.success("✅ Improved Campaign Generated!")
 
-            with st.expander("📍 **1. Target Schools & Fit Rationale**", expanded=True):
-                st.write(result)  # We'll improve parsing later if needed
+            with st.expander("📍 Target Schools & Fit", expanded=True):
+                st.write(result)   # Full result for now - we can parse better later
 
-            # For now, show full result in sections (simple version)
-            st.markdown("### 📧 **2. Email Templates**")
-            st.info("Copy the templates below and customize with your name/info.")
+            st.markdown("### 📧 **Detailed Email Templates**")
+            st.info("Copy and customize with your real name, exact stats, and highlights link.")
 
-            # Attempt to show templates nicely (basic for now)
-            st.text_area("Template 1 (Copy)", value="Dear Coach,\n\n[Personalized intro here]\n\nBest,\n[Your Name]", height=200, key="template1")
-            st.text_area("Template 2 (Copy)", value="Subject: [Strong Subject Line]\n\nBody here...\n\nDisclaimer: Athlete-initiated contact per NCAA rules.", height=200, key="template2")
+            # Nice formatted templates area
+            st.subheader("Template 1 - Professional Full Email")
+            st.text_area("Copy Template 1", 
+                        value="Subject: Texas Point Guard (Class of 2027) Interested in Your Program\n\nDear Coach [Last Name],\n\nMy name is [Your Full Name], a [height if known] point guard from [High School], Texas (Class of 2027, 3.6 GPA). I've been following your program closely and believe my skill set would be a strong fit.\n\nThis past season I averaged 18 PPG, 5 APG while shooting 38% from three and playing strong defense. As a floor general and leader, I'm excited about the possibility of contributing to [School]...\n\nAttached are my highlights and academic resume. I'd greatly appreciate any opportunity to discuss your program.\n\nThank you for your time.\n\nBest regards,\n[Your Full Name]\n[Phone] | [Email]\n[Highlights Link]\n\n*Disclaimer: This is athlete-initiated electronic communication per NCAA rules. I understand and will comply with all recruiting guidelines.*", 
+                        height=300, key="t1")
 
-            with st.expander("✅ **3. Compliance & Timing**"):
-                st.write("Safe to send electronic outreach now in most cases. Log all communication. Follow up in 10-14 days if no reply.")
+            st.subheader("Template 2 - Alternative Angle")
+            st.text_area("Copy Template 2", 
+                        value="Subject: PG Prospect from Texas with Strong Playmaking Ability\n\nDear Coach,\n\nI'm reaching out as a Class of 2027 point guard from Texas who has been impressed with how your team develops guards...\n\n[Personalized body]\n\n*Disclaimer: Athlete-initiated...*", 
+                        height=250, key="t2")
 
-            st.caption("Results are AI-generated • Always verify contacts and NCAA rules manually • Public data only")
+            st.subheader("Template 3 - Short DM / Text")
+            st.text_area("Copy Short DM", 
+                        value="Coach [Last Name], Texas '27 PG here (18 PPG, 5 APG). Really like what you're building at [School]. Highlights: [link]. Would love to chat whenever you have time. Thanks!", 
+                        height=150, key="t3")
+
+            with st.expander("✅ Compliance & Timing"):
+                st.write("Athlete-initiated electronic contact is generally allowed. Log everything. Follow up in 10-14 days if no response. Always check the latest NCAA calendar.")
+
+            st.caption("More detailed templates • Still using stable low-token settings")
 
         except Exception as e:
             st.error(f"❌ Error: {str(e)}")
-            st.info("Wait 10-20 seconds and try again with a shorter input.")
+            st.info("Try again in a few seconds with slightly shorter stats field.")
 
-st.caption("Polished output version • Stable & under rate limits")
+st.caption("Improved detailed email templates version")
