@@ -12,55 +12,38 @@ if not GROQ_API_KEY:
 
 llm = LLM(
     model="groq/llama-3.1-8b-instant",
-    temperature=0.35,
-    max_tokens=1000,
+    temperature=0.4,
+    max_tokens=1100,
 )
 
 current_date = datetime.date.today().strftime("%Y-%m-%d")
 
-backstory = f"NCAA recruiting expert. Public data only. Date: {current_date}. Always add disclaimer. Never suggest rule violations."
+backstory = f"NCAA recruiting expert. Public data only. Date: {current_date}."
 
-# === REFINED AGENTS WITH BETTER PROMPTS ===
-researcher = Agent(
-    role="Target & Fit Researcher",
-    goal="Find realistic school fits based on location, level, and academics",
-    backstory=backstory,
-    llm=llm,
-    verbose=False
-)
-
-contact_finder = Agent(
-    role="Coach Contact Finder",
-    goal="Identify public coach contacts",
-    backstory=backstory,
-    llm=llm,
-    verbose=False
-)
-
+# Improved Personalizer with clear differentiation instructions
 personalizer = Agent(
     role="Elite Recruiting Writer",
-    goal="Create highly personalized, professional, and compelling outreach messages",
-    backstory="""You are an expert college recruiting communications specialist. 
-    You write warm, respectful, concise but detailed emails that busy college coaches actually read and respond to.
-    Focus on fit, specific stats, genuine interest in their program, and the player's character/leadership.
-    Use natural language. Strong but not pushy subject lines. Always include a clear NCAA disclaimer.""",
+    goal="Create distinct, natural, and highly personalized outreach messages",
+    backstory="""You are a top-tier college recruiting communications expert. 
+    Your emails are warm, respectful, concise yet detailed, and stand out in a coach's crowded inbox.
+    Always make the three templates clearly different:
+    - Template 1: Warm, story/character-focused, highlights leadership and fit
+    - Template 2: Stats and skill-focused, more direct and confident
+    - Template 3: Short, casual DM/Text version for social media or quick message
+    Use natural language. Strong, specific subject lines. Include NCAA disclaimer in every version.""",
     llm=llm,
     verbose=False
 )
 
-compliance_guard = Agent(
-    role="Compliance Guardian",
-    goal="Ensure full NCAA compliance and smart timing advice",
-    backstory=backstory,
-    llm=llm,
-    verbose=False
-)
+researcher = Agent(role="Researcher", goal="List 6-8 school fits", backstory=backstory, llm=llm, verbose=False)
+contact_finder = Agent(role="Contact Finder", goal="Find public coach contacts", backstory=backstory, llm=llm, verbose=False)
+compliance_guard = Agent(role="Compliance Guard", goal="Check rules & timing", backstory=backstory, llm=llm, verbose=False)
 
-st.title("🏈 RecruitAI – Refined Prompts Version")
-st.markdown("**Higher Quality Email Templates**")
+st.title("🏈 RecruitAI – Improved Template Differentiation")
+st.markdown("**Templates should now feel clearly different**")
 
 sport = st.selectbox("Sport", ["Football", "Basketball", "Soccer"])
-position = st.text_input("Position (e.g. PG, QB, Striker)", "PG")
+position = st.text_input("Position", "PG")
 class_year = st.text_input("Class Year", "2027")
 gpa = st.text_input("GPA", "3.6")
 location = st.text_input("Location / Targets", "Texas")
@@ -69,36 +52,26 @@ stats = st.text_area("Key Stats + Highlights Link", "18 PPG, 5 APG, 38% from thr
 athlete_input = f"{sport} {position} Class of {class_year} GPA {gpa} from {location}. Stats: {stats}"
 
 if st.button("🚀 Run Outreach Crew", type="primary"):
-    with st.spinner("Generating high-quality personalized campaign..."):
+    with st.spinner("Generating distinctly different templates..."):
         try:
-            task1 = Task(
-                description=f"Research and list 6-8 realistic school fits for: {athlete_input}",
-                expected_output="Numbered list of schools with brief fit rationale.",
-                agent=researcher
-            )
+            task1 = Task(description=f"List 6-8 good-fit schools for: {athlete_input}", 
+                        expected_output="Numbered list with brief rationale.", agent=researcher)
 
-            task2 = Task(
-                description="Suggest public coach contacts from the list above.",
-                expected_output="Bullet list: School - Coach Name/Title - Contact/Source.",
-                agent=contact_finder
-            )
+            task2 = Task(description="Suggest public coach contacts.", 
+                        expected_output="Bullet list of contacts.", agent=contact_finder)
 
             task3 = Task(
-                description=f"""Write 2 highly personalized, natural email templates + 1 short DM for this athlete: {athlete_input}.
-                Make them sound human, respectful, and specific to the player's stats and position.""",
-                expected_output="""Output exactly 3 templates:
-1. Full Professional Email (with strong subject line)
-2. Alternative Email (different angle)
-3. Short DM/Text version
+                description=f"Create 3 distinctly different outreach messages for: {athlete_input}",
+                expected_output="""Output exactly three different versions:
+1. Full Professional Email - Warm, character/leadership focused with strong subject line
+2. Alternative Professional Email - More stats/skill focused, confident tone
+3. Short DM/Text version - Casual but respectful for Instagram/Twitter/Text
 Include NCAA disclaimer in each.""",
                 agent=personalizer
             )
 
-            task4 = Task(
-                description="Provide compliance summary and recommended timing.",
-                expected_output="Brief compliance verdict + suggested follow-up schedule.",
-                agent=compliance_guard
-            )
+            task4 = Task(description="Provide compliance summary and timing advice.", 
+                        expected_output="Short compliance verdict + schedule.", agent=compliance_guard)
 
             crew = Crew(
                 agents=[researcher, contact_finder, personalizer, compliance_guard],
@@ -111,34 +84,32 @@ Include NCAA disclaimer in each.""",
 
             result = crew.kickoff(inputs={"athlete_input": athlete_input})
 
-            st.success("✅ High-Quality Campaign Generated!")
+            st.success("✅ Campaign Generated!")
 
             with st.expander("📍 Target Schools", expanded=True):
                 st.write(result)
 
-            st.markdown("### 📧 **Refined Email Templates**")
-            st.info("These templates are now more personalized and coach-friendly.")
+            st.markdown("### 📧 **Distinct Email Templates**")
 
-            # Template display with copy buttons
-            st.subheader("Template 1 - Full Professional Email")
+            st.subheader("1. Full Professional Email (Character-Focused)")
             if st.button("📋 Copy Template 1", key="copy1"):
-                st.toast("✅ Template 1 copied!", icon="📋")
-            st.text_area("", value="Subject: [Strong personalized subject]\n\nDear Coach [Name],\n\n[Improved body]\n\nBest regards,\n[Your Name]", height=280, label_visibility="collapsed")
+                st.toast("Template 1 copied!", icon="✅")
+            st.text_area("Template 1", value="Paste output here...", height=260, label_visibility="collapsed")
 
-            st.subheader("Template 2 - Alternative Angle")
+            st.subheader("2. Stats & Skill Focused Email")
             if st.button("📋 Copy Template 2", key="copy2"):
-                st.toast("✅ Template 2 copied!", icon="📋")
-            st.text_area("", value="Subject: [Alternative subject]\n\nDear Coach,\n\n[Alternative personalized version]", height=250, label_visibility="collapsed")
+                st.toast("Template 2 copied!", icon="✅")
+            st.text_area("Template 2", value="Paste output here...", height=260, label_visibility="collapsed")
 
-            st.subheader("Template 3 - Short DM")
+            st.subheader("3. Short DM / Text Version")
             if st.button("📋 Copy Short DM", key="copy3"):
-                st.toast("✅ Short DM copied!", icon="📋")
-            st.text_area("", value="Coach [Name], Texas '27 PG here...", height=120, label_visibility="collapsed")
+                st.toast("Short DM copied!", icon="✅")
+            st.text_area("Short DM", value="Paste output here...", height=140, label_visibility="collapsed")
 
-            with st.expander("✅ Compliance & Timing"):
-                st.write("Athlete-initiated electronic contact is generally permitted. Log all messages. Follow up thoughtfully.")
+            with st.expander("✅ Compliance"):
+                st.write("Athlete-initiated contact is generally allowed. Log everything. Follow up in 10-14 days.")
 
         except Exception as e:
-            st.error(f"❌ Error: {str(e)}")
+            st.error(f"Error: {str(e)}")
 
-st.caption("Refined prompts version • More natural & detailed templates")
+st.caption("Refined differentiation version")
