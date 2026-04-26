@@ -20,14 +20,7 @@ llm = LLM(model="groq/llama-3.1-8b-instant", temperature=0.3, max_tokens=700)
 current_date = datetime.date.today().strftime("%Y-%m-%d")
 backstory = f"NCAA expert. Public data only. Date: {current_date}. Add disclaimer."
 
-researcher = Agent(
-    role="Researcher", 
-    goal="List realistic school fits and contacts", 
-    backstory=backstory, 
-    llm=llm, 
-    verbose=False
-)
-
+researcher = Agent(role="Researcher", goal="List realistic school fits and contacts", backstory=backstory, llm=llm, verbose=False)
 personalizer = Agent(
     role="Recruiting Writer",
     goal="Write 2 different short email templates + 1 DM",
@@ -35,7 +28,6 @@ personalizer = Agent(
     llm=llm,
     verbose=False
 )
-
 compliance_guard = Agent(role="Compliance", goal="Check rules & timing", backstory=backstory, llm=llm, verbose=False)
 
 st.title("🏈 RecruitAI")
@@ -91,42 +83,42 @@ with st.container(border=True):
 
                 st.success("✅ Campaign Generated")
 
-                # Clean Output
-                st.subheader("📍 Recommended Schools & Contacts")
-                with st.expander("View schools and contacts", expanded=True):
+                # === CLEAN ORDERED OUTPUT ===
+                st.subheader("📍 1. Recommended Schools & Contacts")
+                with st.expander("View schools and suggested contacts", expanded=True):
                     st.markdown(result)
 
-                st.subheader("📧 Outreach Templates")
-                st.caption("Click to copy • Customize with your details")
+                st.subheader("📧 2. Outreach Templates")
+                st.caption("Click to copy • Customize with your name, exact stats, and highlights link")
 
-                col_t1, col_t2 = st.columns([5, 1])
-                with col_t1:
-                    st.markdown("**1. Character & Leadership Focused**")
+                col1a, col1b = st.columns([5, 1])
+                with col1a:
+                    st.markdown("**Template 1** — Character & Leadership Focused")
                     st.text_area("Template 1", value="Template 1 will appear here...", height=180, label_visibility="collapsed")
-                with col_t2:
+                with col1b:
                     if st.button("📋 Copy", key="copy1"):
-                        st.toast("✅ Copied!", icon="📋")
+                        st.toast("✅ Template 1 copied!", icon="📋")
 
-                col_s1, col_s2 = st.columns([5, 1])
-                with col_s1:
-                    st.markdown("**2. Stats & Skills Focused**")
+                col2a, col2b = st.columns([5, 1])
+                with col2a:
+                    st.markdown("**Template 2** — Stats & Skills Focused")
                     st.text_area("Template 2", value="Template 2 will appear here...", height=180, label_visibility="collapsed")
-                with col_s2:
+                with col2b:
                     if st.button("📋 Copy", key="copy2"):
-                        st.toast("✅ Copied!", icon="📋")
+                        st.toast("✅ Template 2 copied!", icon="📋")
 
-                st.markdown("**3. Short DM / Text**")
+                st.markdown("**Template 3** — Short DM / Text")
                 if st.button("📋 Copy DM", key="copy3"):
-                    st.toast("✅ Copied!", icon="📋")
+                    st.toast("✅ Short DM copied!", icon="📋")
                 st.text_area("Short DM", value="Short DM will appear here...", height=110, label_visibility="collapsed")
 
-                with st.expander("✅ Compliance & Timing"):
-                    st.write("Athlete-initiated electronic contact is generally allowed. Log everything. Follow up in 10–14 days.")
+                with st.expander("✅ 3. Compliance & Next Steps"):
+                    st.write("Athlete-initiated electronic contact is generally allowed. Log all messages. Follow up in 10–14 days if no reply.")
 
             except Exception as e:
                 if "rate limit" in str(e).lower():
-                    st.error("⏳ Rate limit reached. Wait 15–30 seconds and try again.")
+                    st.error("⏳ Rate limit reached. Please wait 15–30 seconds and try again.")
                 else:
                     st.error(f"Error: {str(e)}")
 
-st.caption("Clean layout version")
+st.caption("Clean ordered layout • Schools first, then templates")
