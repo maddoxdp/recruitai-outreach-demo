@@ -8,129 +8,126 @@ st.set_page_config(page_title="RecruitAI", page_icon="🏈", layout="wide")
 with st.sidebar:
     st.title("🏈 RecruitAI")
     st.markdown("**Athlete Outreach Assistant**")
-    st.caption("Clean • Fast • Compliant")
+    st.caption("Robust Version")
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 if not GROQ_API_KEY:
     st.error("❌ GROQ_API_KEY missing.")
     st.stop()
 
-llm = LLM(model="groq/llama-3.1-8b-instant", temperature=0.3, max_tokens=700)
+llm = LLM(model="groq/llama-3.1-8b-instant", temperature=0.4, max_tokens=900)
 
 current_date = datetime.date.today().strftime("%Y-%m-%d")
-backstory = f"NCAA expert. Public data only. Date: {current_date}. Add disclaimer."
+backstory = f"NCAA recruiting expert. Use public data only. Date: {current_date}."
 
 researcher = Agent(
-    role="Researcher", 
-    goal="List realistic school fits", 
-    backstory=backstory, 
-    llm=llm, 
-    verbose=False
-)
-
-personalizer = Agent(
-    role="Recruiting Writer",
-    goal="Write 2 different short email templates + 1 DM",
-    backstory="Write natural recruiting messages. Make the two emails clearly different (one character-focused, one stats-focused).",
+    role="Senior Recruiter Researcher",
+    goal="Find realistic school fits with good rationale",
+    backstory=backstory + " Focus on division level, location, academics, and program needs.",
     llm=llm,
     verbose=False
 )
 
-compliance_guard = Agent(role="Compliance", goal="Check rules & timing", backstory=backstory, llm=llm, verbose=False)
+personalizer = Agent(
+    role="Elite Recruiting Writer",
+    goal="Create high-quality, distinct, personalized outreach messages",
+    backstory="""Expert college recruiting communications specialist. Write warm, respectful, compelling emails that stand out.
+    Make templates clearly different:
+    - Template 1: Character, leadership, and program fit focused
+    - Template 2: Stats, skills, and athletic upside focused
+    - Template 3: Short, natural DM/Text version""",
+    llm=llm,
+    verbose=False
+)
 
-st.title("🏈 RecruitAI")
-st.markdown("**Generate clean, compliant coach outreach**")
+compliance_guard = Agent(
+    role="Compliance Expert",
+    goal="Ensure NCAA compliance and smart timing",
+    backstory=backstory + " Be accurate about current recruiting periods.",
+    llm=llm,
+    verbose=False
+)
 
-# Input Form
+st.title("🏈 RecruitAI - Robust Version")
+st.markdown("**Detailed school research + high-quality templates**")
+
+# Input
 with st.container(border=True):
     col1, col2 = st.columns(2)
     with col1:
-        sport = st.selectbox("Sport", ["Select Sport", "Football", "Basketball", "Soccer"], index=0)
+        sport = st.selectbox("Sport", ["Football", "Basketball", "Soccer"])
         position = st.text_input("Position", "PG")
         class_year = st.text_input("Class Year", "2027")
     with col2:
         gpa = st.text_input("GPA", "3.6")
         location = st.text_input("Location / Targets", "Texas")
     
-    stats = st.text_area("Key Stats + Highlights Link (keep short)", 
-                        "18 PPG, 5 APG, 38% from three. hudl.com/example", height=80)
+    stats = st.text_area("Key Stats + Highlights Link", 
+                        "18 PPG, 5 APG, 38% from three, strong defender and leader. hudl.com/example-pg-texas", height=100)
 
     athlete_input = f"{sport} {position} Class of {class_year} GPA {gpa} from {location}. Stats: {stats}"
 
-    if st.button("🚀 Generate Outreach Campaign", type="primary", use_container_width=True):
-        if sport == "Select Sport":
-            st.warning("Please select a sport.")
-        else:
-            with st.spinner("Generating campaign..."):
-                try:
-                    # Stronger, clearer task for schools
-                    task1 = Task(
-                        description=f"Provide a clear numbered list of 6-8 realistic college programs that would be good fits for this athlete: {athlete_input}. Include a short reason for each fit.",
-                        expected_output="Numbered list of schools with 1-sentence fit rationale for each.",
-                        agent=researcher
-                    )
+    if st.button("🚀 Generate Full Campaign", type="primary", use_container_width=True):
+        with st.spinner("Running robust crew... (may take 45-90 seconds)"):
+            try:
+                task1 = Task(
+                    description=f"Research and list 6-8 realistic college programs that would be good fits for this athlete: {athlete_input}. Include brief rationale for each.",
+                    expected_output="Numbered list of schools with fit rationale and any known coach contacts.",
+                    agent=researcher
+                )
 
-                    task2 = Task(
-                        description=f"Write 2 different short email templates + 1 DM for: {athlete_input}",
-                        expected_output="Template 1 (character/leadership), Template 2 (stats/skills), Short DM. Include disclaimer.",
-                        agent=personalizer
-                    )
+                task2 = Task(
+                    description=f"Create 3 distinct, high-quality outreach messages for: {athlete_input}",
+                    expected_output="1. Full Professional Email (character/leadership focused)\n2. Alternative Email (stats/skills focused)\n3. Short DM/Text version\nInclude strong subject lines and NCAA disclaimer in each.",
+                    agent=personalizer
+                )
 
-                    task3 = Task(
-                        description="Give brief compliance and timing advice.",
-                        expected_output="Short compliance note + suggested follow-up.",
-                        agent=compliance_guard
-                    )
+                task3 = Task(
+                    description="Provide compliance summary and recommended timing.",
+                    expected_output="Brief compliance verdict + suggested follow-up schedule.",
+                    agent=compliance_guard
+                )
 
-                    crew = Crew(
-                        agents=[researcher, personalizer, compliance_guard],
-                        tasks=[task1, task2, task3],
-                        process=Process.sequential,
-                        verbose=False,
-                        max_rpm=6,
-                        memory=False
-                    )
+                crew = Crew(
+                    agents=[researcher, personalizer, compliance_guard],
+                    tasks=[task1, task2, task3],
+                    process=Process.sequential,
+                    verbose=False,
+                    max_rpm=6,
+                    memory=False
+                )
 
-                    result = crew.kickoff(inputs={"athlete_input": athlete_input})
+                result = crew.kickoff(inputs={"athlete_input": athlete_input})
 
-                    st.success("✅ Campaign Generated")
+                st.success("✅ Full Campaign Generated")
 
-                    # === CLEAN OUTPUT WITH SCHOOLS FIRST ===
-                    st.subheader("📍 1. Recommended Schools")
-                    with st.expander("View recommended schools and fit rationale", expanded=True):
-                        st.markdown(result)
+                st.subheader("📍 1. Recommended Schools")
+                with st.expander("View schools and fit rationale", expanded=True):
+                    st.markdown(result)
 
-                    st.subheader("📧 2. Outreach Templates")
-                    st.caption("Click to copy • Customize with your details")
+                st.subheader("📧 2. Outreach Templates")
+                st.caption("Copy and customize with your info")
 
-                    col1a, col1b = st.columns([5, 1])
-                    with col1a:
-                        st.markdown("**Template 1** — Character & Leadership")
-                        st.text_area("Template 1", value="Template 1 will appear here...", height=180, label_visibility="collapsed")
-                    with col1b:
-                        if st.button("📋 Copy", key="copy1"):
-                            st.toast("✅ Copied!", icon="📋")
+                st.markdown("**Template 1** — Character & Leadership Focused")
+                if st.button("📋 Copy Template 1", key="t1"):
+                    st.toast("✅ Copied!", icon="📋")
+                st.text_area("Template 1", value="Will appear after generation...", height=220, label_visibility="collapsed")
 
-                    col2a, col2b = st.columns([5, 1])
-                    with col2a:
-                        st.markdown("**Template 2** — Stats & Skills")
-                        st.text_area("Template 2", value="Template 2 will appear here...", height=180, label_visibility="collapsed")
-                    with col2b:
-                        if st.button("📋 Copy", key="copy2"):
-                            st.toast("✅ Copied!", icon="📋")
+                st.markdown("**Template 2** — Stats & Skills Focused")
+                if st.button("📋 Copy Template 2", key="t2"):
+                    st.toast("✅ Copied!", icon="📋")
+                st.text_area("Template 2", value="Will appear after generation...", height=220, label_visibility="collapsed")
 
-                    st.markdown("**3. Short DM / Text**")
-                    if st.button("📋 Copy DM", key="copy3"):
-                        st.toast("✅ Copied!", icon="📋")
-                    st.text_area("Short DM", value="Short DM will appear here...", height=110, label_visibility="collapsed")
+                st.markdown("**Template 3** — Short DM")
+                if st.button("📋 Copy DM", key="t3"):
+                    st.toast("✅ Copied!", icon="📋")
+                st.text_area("Short DM", value="Will appear after generation...", height=120, label_visibility="collapsed")
 
-                    with st.expander("✅ 3. Compliance & Next Steps"):
-                        st.write("Athlete-initiated electronic contact is generally allowed. Log all messages. Follow up in 10–14 days if needed.")
+                with st.expander("✅ 3. Compliance & Timing"):
+                    st.write("Athlete-initiated contact is generally allowed. Always log communications and check current NCAA calendar.")
 
-                except Exception as e:
-                    if "rate limit" in str(e).lower():
-                        st.error("⏳ Rate limit reached. Wait 15–30 seconds and try again.")
-                    else:
-                        st.error(f"Error: {str(e)}")
+            except Exception as e:
+                st.error(f"Error: {str(e)}")
+                st.info("If rate limited, wait 20-30 seconds and try again.")
 
-st.caption("Schools-first layout")
+st.caption("Robust version with better research prompts")
