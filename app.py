@@ -7,140 +7,141 @@ st.set_page_config(page_title="RecruitAI", page_icon="🏈", layout="wide")
 
 with st.sidebar:
     st.title("🏈 RecruitAI")
-    st.markdown("**Athlete Outreach Assistant**")
-    st.caption("Clean • Fast • Compliant")
+    st.markdown("**Full 5-Agent Crew**")
+    st.caption("Robust Version")
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 if not GROQ_API_KEY:
     st.error("❌ GROQ_API_KEY missing.")
     st.stop()
 
-llm = LLM(model="groq/llama-3.1-8b-instant", temperature=0.3, max_tokens=800)
+llm = LLM(model="groq/llama-3.1-8b-instant", temperature=0.4, max_tokens=1000)
 
 current_date = datetime.date.today().strftime("%Y-%m-%d")
-backstory = f"NCAA expert. Public data only. Date: {current_date}. Add disclaimer."
+backstory = f"NCAA recruiting expert. Public data only. Current date: {current_date}."
 
-researcher = Agent(role="Researcher", goal="List realistic school fits", backstory=backstory, llm=llm, verbose=False)
-personalizer = Agent(role="Recruiting Writer", goal="Write distinct outreach messages", backstory="Create natural templates. Make them clearly different.", llm=llm, verbose=False)
-compliance_guard = Agent(role="Compliance", goal="Check rules & timing", backstory=backstory, llm=llm, verbose=False)
+# === 5-AGENT CREW ===
+researcher = Agent(
+    role="Senior Trend & Fit Researcher",
+    goal="Find realistic school fits with strong rationale",
+    backstory=backstory + " Focus on division level, location, academics, roster needs, and recent recruiting activity.",
+    llm=llm,
+    verbose=False
+)
 
-st.title("🏈 RecruitAI")
-st.markdown("**Generate clean, compliant coach outreach**")
+contact_finder = Agent(
+    role="Coach Contact Finder",
+    goal="Find public coach contacts and staff information",
+    backstory=backstory,
+    llm=llm,
+    verbose=False
+)
+
+enricher = Agent(
+    role="Athlete Profile Enricher",
+    goal="Build a strong, polished athlete profile and fit scores",
+    backstory="Compile stats, academics, and strengths into a compelling profile.",
+    llm=llm,
+    verbose=False
+)
+
+personalizer = Agent(
+    role="Elite Recruiting Writer",
+    goal="Create high-quality, distinct outreach messages",
+    backstory="""Expert recruiting communications specialist. Write warm, respectful, and compelling emails/DMs that stand out.
+    Make three versions clearly different:
+    1. Character & leadership focused
+    2. Athletic stats & skills focused
+    3. Short, natural DM/Text version""",
+    llm=llm,
+    verbose=False
+)
+
+compliance_guard = Agent(
+    role="NCAA Compliance Guardian",
+    goal="Ensure full compliance and smart timing advice",
+    backstory=backstory + " Be accurate about current recruiting periods by sport.",
+    llm=llm,
+    verbose=False
+)
+
+st.title("🏈 RecruitAI - Full 5-Agent Crew")
+st.markdown("**Robust multi-agent system**")
 
 # Input Form
 with st.container(border=True):
     col1, col2 = st.columns(2)
     with col1:
-        sport = st.selectbox("Sport", ["Select Sport", "Football", "Basketball", "Soccer"], index=0)
+        sport = st.selectbox("Sport", ["Football", "Basketball", "Soccer"])
         position = st.text_input("Position", "PG")
         class_year = st.text_input("Class Year", "2027")
     with col2:
         gpa = st.text_input("GPA", "3.6")
         location = st.text_input("Location / Targets", "Texas")
     
-    stats = st.text_area("Key Stats + Highlights Link (keep short)", 
-                        "18 PPG, 5 APG, 38% from three. hudl.com/example", height=80)
+    stats = st.text_area("Key Stats + Highlights Link", 
+                        "18 PPG, 5 APG, 38% from three, strong defender and leader. hudl.com/example-pg-texas", height=100)
 
     athlete_input = f"{sport} {position} Class of {class_year} GPA {gpa} from {location}. Stats: {stats}"
 
-    if st.button("🚀 Generate Full Campaign", type="primary", use_container_width=True):
-        if sport == "Select Sport":
-            st.warning("Please select a sport.")
-        else:
-            with st.spinner("Generating campaign..."):
-                try:
-                    # Step 1: Schools
-                    task1 = Task(
-                        description=f"List 6-8 realistic school fits with brief rationale for: {athlete_input}",
-                        expected_output="Numbered list of schools with fit rationale.",
-                        agent=researcher
-                    )
+    if st.button("🚀 Run Full 5-Agent Crew", type="primary", use_container_width=True):
+        with st.spinner("Running full 5-agent crew... (this may take 60-120 seconds)"):
+            try:
+                task1 = Task(
+                    description=f"Research and list 6-8 realistic school fits for: {athlete_input}",
+                    expected_output="Numbered list of schools with fit rationale.",
+                    agent=researcher
+                )
 
-                    # Step 2: Templates
-                    task2 = Task(
-                        description=f"Write 2 different email templates + 1 short DM for: {athlete_input}",
-                        expected_output="Template 1 (character focused), Template 2 (stats focused), Short DM. Include disclaimer.",
-                        agent=personalizer
-                    )
+                task2 = Task(
+                    description="From the schools above, find public coach contacts.",
+                    expected_output="Bullet list of coach contacts with sources.",
+                    agent=contact_finder
+                )
 
-                    task3 = Task(
-                        description="Give brief compliance and timing advice.",
-                        expected_output="Short compliance note + suggested follow-up.",
-                        agent=compliance_guard
-                    )
+                task3 = Task(
+                    description=f"Build a polished athlete profile and fit scores for: {athlete_input}",
+                    expected_output="Polished bio + per-school fit scores.",
+                    agent=enricher
+                )
 
-                    crew = Crew(
-                        agents=[researcher, personalizer, compliance_guard],
-                        tasks=[task1, task2, task3],
-                        process=Process.sequential,
-                        verbose=False,
-                        max_rpm=6,
-                        memory=False
-                    )
+                task4 = Task(
+                    description=f"Write 3 distinct, high-quality outreach messages for: {athlete_input}",
+                    expected_output="1. Full Professional Email (character focused)\n2. Alternative Email (stats focused)\n3. Short DM/Text version\nInclude strong subject lines and NCAA disclaimer.",
+                    agent=personalizer
+                )
 
-                    result = crew.kickoff(inputs={"athlete_input": athlete_input})
+                task5 = Task(
+                    description="Provide compliance summary and recommended timing.",
+                    expected_output="Compliance verdict + suggested follow-up schedule.",
+                    agent=compliance_guard
+                )
 
-                    st.success("✅ Campaign Generated")
+                crew = Crew(
+                    agents=[researcher, contact_finder, enricher, personalizer, compliance_guard],
+                    tasks=[task1, task2, task3, task4, task5],
+                    process=Process.sequential,
+                    verbose=False,
+                    max_rpm=6,
+                    memory=False
+                )
 
-                    # Display Results
-                    st.subheader("📍 1. Recommended Schools")
-                    with st.expander("View schools and fit rationale", expanded=True):
-                        st.markdown(result)
+                result = crew.kickoff(inputs={"athlete_input": athlete_input})
 
-                    st.subheader("📧 2. Outreach Templates")
-                    st.caption("Click to copy • Customize with your details")
+                st.success("✅ Full 5-Agent Campaign Generated")
 
-                    # Templates (placeholder for now - real content will come from result)
-                    st.markdown("**Template 1** — Character & Leadership Focused")
-                    if st.button("📋 Copy", key="copy1"):
-                        st.toast("✅ Copied!", icon="📋")
-                    st.text_area("Template 1", value="Template 1 content...", height=180, label_visibility="collapsed")
+                st.subheader("📍 Recommended Schools")
+                with st.expander("View schools", expanded=True):
+                    st.markdown(result)
 
-                    st.markdown("**Template 2** — Stats & Skills Focused")
-                    if st.button("📋 Copy", key="copy2"):
-                        st.toast("✅ Copied!", icon="📋")
-                    st.text_area("Template 2", value="Template 2 content...", height=180, label_visibility="collapsed")
+                st.subheader("📧 Outreach Templates")
+                st.text_area("Templates will appear here...", height=300, label_visibility="collapsed")
 
-                    st.markdown("**Short DM**")
-                    if st.button("📋 Copy DM", key="copy3"):
-                        st.toast("✅ Copied!", icon="📋")
-                    st.text_area("Short DM", value="Short DM content...", height=110, label_visibility="collapsed")
+                with st.expander("✅ Compliance"):
+                    st.write("Review the full output above for compliance details.")
 
-                    # === DOWNLOAD BUTTON ===
-                    full_campaign = f"""RECRUITAI CAMPAIGN REPORT
-Generated on {current_date}
+            except Exception as e:
+                st.error(f"Error: {str(e)}")
+                st.info("If rate limited, wait 30+ seconds and try again.")
 
-Athlete Profile:
-{sport} {position} | Class of {class_year} | GPA {gpa} | {location}
-Stats: {stats}
-
-1. RECOMMENDED SCHOOLS:
-{result}
-
-2. OUTREACH TEMPLATES:
-[Template 1]
-[Template 2]
-[Short DM]
-
-3. COMPLIANCE:
-Athlete-initiated contact is generally allowed. Log all messages.
-"""
-
-                    st.download_button(
-                        label="📥 Download Full Campaign as .txt",
-                        data=full_campaign,
-                        file_name=f"RecruitAI_{sport}_{position}_{class_year}.txt",
-                        mime="text/plain",
-                        use_container_width=True
-                    )
-
-                    with st.expander("✅ Compliance & Next Steps"):
-                        st.write("Athlete-initiated electronic contact is generally allowed. Always log communications and check the current NCAA calendar.")
-
-                except Exception as e:
-                    if "rate limit" in str(e).lower():
-                        st.error("⏳ Rate limit reached. Please wait 15–30 seconds and try again.")
-                    else:
-                        st.error(f"Error: {str(e)}")
-
-st.caption("Schools-first version with Download button")
+st.caption("Full 5-agent crew restored")
