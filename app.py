@@ -37,7 +37,11 @@ st.markdown("**Generate clean, compliant coach outreach**")
 with st.container(border=True):
     col1, col2 = st.columns(2)
     with col1:
-        sport = st.selectbox("Sport", ["Football", "Basketball", "Soccer"])
+        sport = st.selectbox(
+            "Sport", 
+            ["Select Sport", "Football", "Basketball", "Soccer"],
+            index=0  # Forces "Select Sport" as default
+        )
         position = st.text_input("Position", "PG")
         class_year = st.text_input("Class Year", "2027")
     with col2:
@@ -50,75 +54,77 @@ with st.container(border=True):
     athlete_input = f"{sport} {position} Class of {class_year} GPA {gpa} from {location}. Stats: {stats}"
 
     if st.button("🚀 Generate Outreach Campaign", type="primary", use_container_width=True):
-        with st.spinner("Generating campaign..."):
-            try:
-                task1 = Task(
-                    description=f"List 6-8 realistic school fits with brief rationale and any public coach contacts for: {athlete_input}",
-                    expected_output="Numbered list: School - Brief fit reason - Coach contact if known.",
-                    agent=researcher
-                )
+        if sport == "Select Sport":
+            st.warning("Please select a sport to continue.")
+        else:
+            with st.spinner("Generating campaign..."):
+                try:
+                    task1 = Task(
+                        description=f"List 6-8 realistic school fits with brief rationale and any public coach contacts for: {athlete_input}",
+                        expected_output="Numbered list: School - Brief fit reason - Coach contact if known.",
+                        agent=researcher
+                    )
 
-                task2 = Task(
-                    description=f"Write 2 different short email templates + 1 DM for: {athlete_input}",
-                    expected_output="Template 1 (character/leadership focused), Template 2 (stats/skills focused), Short DM. Include disclaimer.",
-                    agent=personalizer
-                )
+                    task2 = Task(
+                        description=f"Write 2 different short email templates + 1 DM for: {athlete_input}",
+                        expected_output="Template 1 (character/leadership focused), Template 2 (stats/skills focused), Short DM. Include disclaimer.",
+                        agent=personalizer
+                    )
 
-                task3 = Task(
-                    description="Give brief compliance and timing advice.",
-                    expected_output="Short compliance note + suggested follow-up.",
-                    agent=compliance_guard
-                )
+                    task3 = Task(
+                        description="Give brief compliance and timing advice.",
+                        expected_output="Short compliance note + suggested follow-up.",
+                        agent=compliance_guard
+                    )
 
-                crew = Crew(
-                    agents=[researcher, personalizer, compliance_guard],
-                    tasks=[task1, task2, task3],
-                    process=Process.sequential,
-                    verbose=False,
-                    max_rpm=6,
-                    memory=False
-                )
+                    crew = Crew(
+                        agents=[researcher, personalizer, compliance_guard],
+                        tasks=[task1, task2, task3],
+                        process=Process.sequential,
+                        verbose=False,
+                        max_rpm=6,
+                        memory=False
+                    )
 
-                result = crew.kickoff(inputs={"athlete_input": athlete_input})
+                    result = crew.kickoff(inputs={"athlete_input": athlete_input})
 
-                st.success("✅ Campaign Generated")
+                    st.success("✅ Campaign Generated")
 
-                # === CLEAN ORDERED OUTPUT ===
-                st.subheader("📍 1. Recommended Schools & Contacts")
-                with st.expander("View schools and suggested contacts", expanded=True):
-                    st.markdown(result)
+                    st.subheader("📍 1. Recommended Schools & Contacts")
+                    with st.expander("View schools and suggested contacts", expanded=True):
+                        st.markdown(result)
 
-                st.subheader("📧 2. Outreach Templates")
-                st.caption("Click to copy • Customize with your name, exact stats, and highlights link")
+                    st.subheader("📧 2. Outreach Templates")
+                    st.caption("Click to copy • Customize with your details")
 
-                col1a, col1b = st.columns([5, 1])
-                with col1a:
-                    st.markdown("**Template 1** — Character & Leadership Focused")
-                    st.text_area("Template 1", value="Template 1 will appear here...", height=180, label_visibility="collapsed")
-                with col1b:
-                    if st.button("📋 Copy", key="copy1"):
-                        st.toast("✅ Template 1 copied!", icon="📋")
+                    col1a, col1b = st.columns([5, 1])
+                    with col1a:
+                        st.markdown("**Template 1** — Character & Leadership Focused")
+                        st.text_area("Template 1", value="Template 1 will appear here...", height=180, label_visibility="collapsed")
+                    with col1b:
+                        if st.button("📋 Copy", key="copy1"):
+                            st.toast("✅ Template 1 copied!", icon="📋")
 
-                col2a, col2b = st.columns([5, 1])
-                with col2a:
-                    st.markdown("**Template 2** — Stats & Skills Focused")
-                    st.text_area("Template 2", value="Template 2 will appear here...", height=180, label_visibility="collapsed")
-                with col2b:
-                    if st.button("📋 Copy", key="copy2"):
-                        st.toast("✅ Template 2 copied!", icon="📋")
+                    col2a, col2b = st.columns([5, 1])
+                    with col2a:
+                        st.markdown("**Template 2** — Stats & Skills Focused")
+                        st.text_area("Template 2", value="Template 2 will appear here...", height=180, label_visibility="collapsed")
+                    with col2b:
+                        if st.button("📋 Copy", key="copy2"):
+                            st.toast("✅ Template 2 copied!", icon="📋")
 
-                st.markdown("**Template 3** — Short DM / Text")
-                if st.button("📋 Copy DM", key="copy3"):
-                    st.toast("✅ Short DM copied!", icon="📋")
-                st.text_area("Short DM", value="Short DM will appear here...", height=110, label_visibility="collapsed")
+                    st.markdown("**Template 3** — Short DM / Text")
+                    if st.button("📋 Copy DM", key="copy3"):
+                        st.toast("✅ Short DM copied!", icon="📋")
+                    st.text_area("Short DM", value="Short DM will appear here...", height=110, label_visibility="collapsed")
 
-                with st.expander("✅ 3. Compliance & Next Steps"):
-                    st.write("Athlete-initiated electronic contact is generally allowed. Log all messages. Follow up in 10–14 days if no reply.")
+                    with st.expander("✅ 3. Compliance & Next Steps"):
+                        st.write("Athlete-initiated electronic contact is generally allowed. Log all messages. Follow up in 10–14 days if no reply.")
 
-            except Exception as e:
-                if "rate limit" in str(e).lower():
-                    st.error("⏳ Rate limit reached. Please wait 15–30 seconds and try again.")
-                else:
-                    st.error(f"Error: {str(e)}")
+                except Exception as e:
+                    if "rate limit" in str(e).lower():
+                        st.error("⏳ Rate limit reached. Please wait 15–30 seconds and try again.")
+                    else:
+                        st.error(f"Error: {str(e)}")
 
-st.caption("Clean ordered layout • Schools first, then templates")
+st.caption("Clean ordered layout • Schools first")
